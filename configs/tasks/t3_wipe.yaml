@@ -1,0 +1,37 @@
+# Task T3: Wipe a rectangle on a plane with force control
+
+task_name: "wipe_rectangle"
+
+plane:
+  frame: "board"
+  normal: [0, 0, 1]
+  point: [0.45, 0.0, 0.0]
+
+force:
+  normal_desired_N: 10.0
+  limit_N: 20.0
+  tolerance_N: 3.0
+
+path:
+  type: "rectangle"
+  center: [0.45, 0.0, 0.01]  # Slightly above plane
+  width: 0.15                 # meters (x-direction)
+  height: 0.10                # meters (y-direction)
+  yaw: 0.0                    # radians
+  passes: 2                   # Number of back-and-forth passes
+
+orientation_constraint:
+  tool_z_align_normal: true
+  tolerance: 0.1  # radians
+
+approach:
+  approach_distance: 0.05
+  approach_speed: 0.01
+
+wipe:
+  speed: 0.05           # Tangential speed (m/s)
+  corner_blend: 0.02    # Blend radius at corners (m)
+
+retry:
+  max_attempts: 3
+  retreat_distance: 0.03

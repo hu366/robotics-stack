@@ -1,0 +1,12 @@
+<!-- MuJoCo scene: Franka Panda arm on a table -->
+<!-- Minimal stub for M0 - will be expanded in M1 -->
+<mujoco model="panda_table">
+  <include file="franka_panda.xml"/>
+
+  <worldbody>
+    <!-- Table surface -->
+    <geom name="table" type="plane" size="0.6 0.6 0.05" pos="0.5 0 -0.2" rgba="0.5 0.3 0.2 1"/>
+
+    <!-- Task objects will be added per-task -->
+  </worldbody>
+</mujoco>

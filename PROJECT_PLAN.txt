@@ -1,0 +1,380 @@
+PROJECT_PLAN.txt
+Project: Interpretable Policy Synthesis + Low-level Closed-loop Control (Simulation-only)
+Owner: (Hu)
+Start date: (fill)
+Last updated: (fill)
+
+===============================================================================
+0) PURPOSE / 一句话目标
+===============================================================================
+Build a fully working, simulation-only robotics stack that:
+(1) synthesizes interpretable policies (explicit task graph + motion primitives + constraints),
+(2) executes them with a robust low-level closed-loop controller (Cartesian impedance + force-aware behaviors),
+(3) runs standardized, non-“staged” evaluation with logs/videos/reports.
+
+No physical robot. Everything runs in simulation (MuJoCo).
+
+===============================================================================
+1) NON-NEGOTIABLE PRINCIPLES / 不可妥协的原则
+===============================================================================
+P1. Interpretability first:
+- Every behavior must be explainable as: (task node) + (objective/cost/constraint) + (controller law).
+- No end-to-end neural policy that maps pixels/text directly to torques.
+- Learning is optional and only allowed if the learned component has clear I/O boundaries and can be ablated.
+
+P2. Closed-loop, not playback:
+- Controllers must use feedback (pose/velocity/contact force) every step.
+- All trajectories must be trackable with feedback + safety limits.
+
+P3. Reproducibility:
+- Every demo has an “eval mode” that runs N trials with fixed seeds.
+- Save raw logs + videos + a single generated markdown report.
+
+P4. Engineering discipline:
+- Small commits. Each commit must pass tests.
+- No hidden constants: all gains/thresholds go into config files.
+- Every major module ships with at least one minimal test.
+
+===============================================================================
+2) SCOPE / 项目范围定义
+===============================================================================
+IN SCOPE (must implement):
+A) Simulation environment in MuJoCo:
+- A 7-DoF arm (default: Franka Panda) with a simple gripper or fixed end-effector tool.
+- A tabletop scene + at least two task scenes (free-space + contact).
+
+B) Low-level control (core deliverable):
+- Cartesian impedance controller (operational-space style) for end-effector pose tracking.
+- Force-aware contact behaviors (at least: maintain normal force while sliding on a plane).
+- Safety limiter: torque/velocity limits, singularity damping, joint limit avoidance, contact force limit.
+
+C) Interpretable policy synthesis:
+- Task representation: Behavior Tree (BT) or simple Task Graph / FSM with explicit preconditions & postconditions.
+- Motion primitives library (parameterized):
+  - ReachPose, MoveLine, MoveArc (optional), ApproachContact, SlideWipe, Retreat, Retry.
+- Constraints:
+  - Orientation constraint (tool axis alignment).
+  - Workspace constraints (keep-out boxes / planes).
+  - Force constraint in contact (normal force target + limit).
+
+D) Evaluation protocol:
+- Trial runner: run N trials, randomize initial object pose within a defined distribution.
+- Metrics: success/fail + completion time + RMS pose error + RMS force error + safety violations count.
+- Save: per-trial JSON + aggregated report.md + plots + video.
+
+OUT OF SCOPE (explicitly not doing):
+- Vision-Language-Action end-to-end training.
+- LLM-as-planner hallucination-based execution (LLM can only output structured tasks/parameters).
+- ROS2/MoveIt/Drake integration (optional extension only after core is stable).
+- Real robot deployment.
+
+===============================================================================
+3) TECH STACK / 技术栈（simple, Claude-friendly）
+===============================================================================
+Language:
+- Python 3.11+ for orchestration, planning, evaluation, plotting.
+- (Optional later) C++ only if performance becomes a bottleneck.
+
+Simulation:
+- MuJoCo official python package `mujoco`.
+- Render: onscreen for demos, offscreen for eval videos.
+
+Core deps:
+- numpy, scipy (optional), matplotlib
+- pydantic (or dataclasses) for configs / typed I/O
+- pytest for tests
+- ruff for lint (optional but recommended)
+
+Project conventions:
+- One-command setup + one-command tests.
+- Deterministic seeds by default.
+
+===============================================================================
+4) TOP-LEVEL ARCHITECTURE / 总体架构
+===============================================================================
+Pipeline (runtime):
+[Task Spec (JSON/YAML)] 
+  -> [Task Graph / BT Interpreter]
+    -> [Motion Primitive Generator (interpretable)]
+      -> [Trajectory Generator (waypoints + time parameterization)]
+        -> [Low-level Controller (Cartesian impedance + force mode)]
+          -> [MuJoCo step + state feedback]
+            -> [Logging + Safety Monitor]
+              -> [Success/Failure + Recovery]
+
+Key design: strict module boundaries.
+- Planning outputs explicit targets/constraints; controller executes and reports tracking/force errors.
+- Controller never “decides the task”, only tracks targets safely.
+- Task graph handles retries/recovery based on explicit failure conditions.
+
+===============================================================================
+5) ENVIRONMENTS & TASKS / 仿真场景与任务定义
+===============================================================================
+We will implement 3 tasks in increasing difficulty:
+
+Task T1: Free-space reach & place (non-contact)
+- Goal: move end-effector to target pose (with orientation constraint) within tolerance.
+- Randomization: target pose in a workspace box; initial joint noise.
+- Success: pose error < eps for K consecutive steps, no safety violation.
+
+Task T2: Maintain contact normal force on a plane (contact)
+- Setup: a vertical board or horizontal table surface.
+- Behavior: approach until contact, then maintain Fz = F_des while holding orientation.
+- Success: force RMS error < threshold for duration, stable (no oscillation), no force limit exceed.
+
+Task T3: Wipe a rectangle on a plane with force control (contact + path)
+- Behavior: approach contact -> follow a rectangle path on the plane while maintaining normal force.
+- Randomization: rectangle position/size within bounds, friction variations if possible.
+- Success: completed path (coverage) + force tracking + time limit.
+
+(Stretch goal T4): Peg-in-hole insertion (high value but harder)
+- Only attempt after T1-T3 are stable.
+
+===============================================================================
+6) LOW-LEVEL CONTROL SPEC / 低层闭环控制规格
+===============================================================================
+Controller modes:
+M1) Free-space Cartesian impedance:
+- Command: desired pose x_d(t), desired twist v_d(t) (optional).
+- Compute pose error (position + orientation), map to task-space wrench:
+  F = Kp * e_pos + Kd * e_vel
+  Tau_task = J^T * F
+- Add nullspace posture term to avoid joint limits:
+  Tau_null = (I - J^T * J#^T) * (Kq*(q_nom - q) - Dq*qdot)
+- Total: Tau = Tau_task + Tau_null + gravity compensation (if available) + damping.
+- Use damped least squares pseudoinverse around singularities.
+
+M2) Contact force control (normal direction) + tangential position control:
+- Detect contact with the plane using MuJoCo contact forces.
+- Normal force error: e_f = f_n_des - f_n_meas
+- Convert to small displacement along normal (admittance-like):
+  delta_x_n = kf * e_f + df * (e_f - e_f_prev)/dt
+- Update target pose: x_d := x_ref + delta_x_n * n_hat
+- Tangential direction tracks a path (position control).
+
+Safety monitor:
+- Torque limits, joint velocity limits, joint position soft limits.
+- Force limit: if |f_n| > f_max => retreat + fail/retry.
+- Timeout per node.
+
+Logging (every control step):
+- q, qdot
+- x, x_d, pose error norms
+- f_contact, f_des, force error
+- tau commanded, saturated flags
+- mode (free/contact), BT node name
+
+===============================================================================
+7) INTERPRETABLE POLICY SYNTHESIS SPEC / 可解释策略合成规格
+===============================================================================
+Task Spec format (input):
+- Use JSON or YAML with:
+  - task_name
+  - parameters (target pose, plane pose, rectangle path, desired force)
+  - tolerances
+  - retry policy
+
+Example (conceptual):
+{
+  "task": "wipe_rectangle",
+  "plane": {"frame": "board", "normal": [0,0,1], "point": [x,y,z]},
+  "force": {"normal_desired_N": 10, "limit_N": 20},
+  "path": {"type": "rectangle", "center": [...], "w": 0.15, "h": 0.10, "yaw": 0.0},
+  "orientation_constraint": {"tool_z_align_normal": true},
+  "retry": {"max_attempts": 3, "retreat_m": 0.03}
+}
+
+Task graph / BT nodes (minimum):
+- MoveToPreContactPose
+- ApproachUntilContact
+- ForceHold (stabilize)
+- WipePathSegment (repeat for segments)
+- Retreat
+- Fail/Success
+
+Each node must define:
+- Inputs (targets/constraints)
+- Entry actions
+- Tick/update rule
+- Exit conditions
+- Failure conditions
+- Recovery actions (if any)
+
+Motion primitives:
+- Each primitive outputs an explicit reference trajectory x_ref(t) or waypoints list.
+- Trajectory time parameterization: trapezoidal velocity profile or minimum-jerk per segment.
+
+===============================================================================
+8) EVALUATION PROTOCOL / 评测协议（反“摆拍”）
+===============================================================================
+Trial runner:
+- For each task, run N trials (default N=50).
+- Randomize initial conditions from a declared distribution (seeded).
+- No manual reset during eval; reset is programmatic and logged.
+
+Metrics:
+- Success rate with confidence interval (optional).
+- Mean/median completion time.
+- RMS pose error in free-space segments.
+- RMS force error + peak force in contact segments.
+- Safety events counts (torque saturation, force limit exceed, timeout, instability).
+
+Artifacts per run:
+- logs/trials/<timestamp>/<trial_id>.jsonl or .npz
+- videos/trials/<timestamp>/<trial_id>.mp4
+- reports/<timestamp>/report.md
+- plots/<timestamp>/*.png
+
+Failure taxonomy (must implement):
+- NO_CONTACT: never reached contact within time
+- FORCE_OVERSHOOT: exceeded force limit
+- OSCILLATION: unstable contact (force variance too large)
+- TRACKING_DIVERGENCE: pose error diverged
+- TIMEOUT: node timeout
+- SAFETY_LIMIT: joint/torque/vel limit triggered
+
+===============================================================================
+9) REPO STRUCTURE / 仓库目录结构（Claude-friendly）
+===============================================================================
+/configs
+  controller.yaml
+  tasks/
+    t1_reach.yaml
+    t2_force_hold.yaml
+    t3_wipe.yaml
+/envs
+  mujoco_env.py
+  scenes/
+    panda_table.xml (or assets references)
+/control
+  impedance.py
+  force_mode.py
+  safety.py
+  kinematics.py
+/planning
+  task_graph.py (BT/FSM)
+  primitives.py
+  trajectory.py
+/eval
+  run_trials.py
+  metrics.py
+  report.py
+  plots.py
+/scripts
+  setup.sh
+  demo_t1.sh
+  demo_t2.sh
+  demo_t3.sh
+  test.sh
+/tests
+  test_smoke.py
+  test_controller_stability.py (basic)
+/docs
+  ARCHITECTURE.md
+  TASKS.md
+  DECISIONS.md (ADR style)
+CLAUDE.md (short; see section 11)
+
+===============================================================================
+10) MILESTONES / 里程碑（按“可运行增量”推进）
+===============================================================================
+Milestone M0 (Bootstrap, 1-2 days):
+- Repo created, venv setup, mujoco installs, one-step sim runs.
+- scripts/setup.sh + tests/test_smoke.py green.
+
+Milestone M1 (Free-space impedance control, 1-2 weeks):
+- Implement Cartesian impedance controller.
+- T1 runs reliably with N=50 trials, success > 95% in randomized targets.
+
+Milestone M2 (Contact detection + force hold, 1-2 weeks):
+- Implement ApproachUntilContact + ForceHold mode.
+- T2 success > 85% under randomized board pose/friction (within reason).
+
+Milestone M3 (Wipe rectangle behavior, 2-4 weeks):
+- Implement BT + wipe primitives + force tracking along path.
+- T3 success > 70% initially; log failures; iterate to improve robustness.
+
+Milestone M4 (Evaluation & reporting hardening, 1-2 weeks):
+- One command generates report with plots/videos.
+- Failure taxonomy stable; reproducible seeds.
+
+Milestone M5 (Polish + extensions, ongoing):
+- Add difficulty tiers (larger randomness, clutter, different force targets).
+- Optional: add simple IK solver, better orientation error, better nullspace posture.
+- Optional: add peg-in-hole (T4) after T1-T3 stable.
+
+===============================================================================
+11) HOW CLAUDE SHOULD WORK IN THIS REPO / Claude 工作约定（关键）
+===============================================================================
+Claude Code usage:
+- Prefer permission-mode "plan" when proposing multi-file refactors, then switch to "acceptEdits" for implementation sprints. (plan mode prevents tool execution; acceptEdits auto-approves file edits.)  (refs: permission modes docs)  (Claude will follow these modes as configured in the environment. See Claude Code/SDK permission modes.)  (Source)  -> platform docs.
+
+Work style:
+- Always start by writing/refreshing docs/TASKS.md: list tasks with checkboxes.
+- Implement smallest vertical slice first, then expand.
+- After each milestone: run tests + run N trial eval + save a report.
+- When something fails, do not “paper over”: add logging + explicit failure reasons.
+
+Code constraints:
+- Keep CLAUDE.md short (<= ~150-250 lines). Put detailed specs in PROJECT_PLAN.txt and docs/.
+- Never auto-generate huge CLAUDE.md from /init without pruning; keep only:
+  - build/run/test commands
+  - repo structure
+  - strict rules (no magic constants, logging required)
+- If /init generates long content, reduce it and reference PROJECT_PLAN.txt.
+
+===============================================================================
+12) COMMANDS / 标准命令（Claude 必须维护这些脚本可用）
+===============================================================================
+scripts/setup.sh:
+- create venv
+- pip install -r requirements.txt
+
+scripts/test.sh:
+- run pytest
+- (optional) ruff
+
+scripts/demo_t1.sh / demo_t2.sh / demo_t3.sh:
+- run interactive viewer demo for each task
+
+eval:
+- python -m eval.run_trials --task configs/tasks/t3_wipe.yaml --n 50 --seed 0 --out logs/...
+
+===============================================================================
+13) DEFINITIONS OF DONE / 验收标准
+===============================================================================
+Core “Done” (minimum):
+- M1-M4 complete.
+- Running:
+  - ./scripts/setup.sh
+  - ./scripts/test.sh
+  - ./scripts/demo_t3.sh
+  - python -m eval.run_trials --task t3 --n 50
+  produces a report with plots + saved videos.
+
+“Interpretability” must be demonstrable:
+- In report.md, for each BT node, list:
+  - objective/constraint
+  - controller mode used
+  - typical failure causes
+
+===============================================================================
+14) EXTENSION IDEAS (OPTIONAL)
+===============================================================================
+E1) Difficulty ladder benchmark:
+- Increase randomness, add obstacles, vary friction, vary desired force.
+E2) Add “structured world model” layer:
+- simple scene graph: plane pose, tool pose, path segments, constraints.
+E3) Add a learned perception stub (still interpretable):
+- only outputs plane pose estimates or object pose; ablate-able.
+E4) Add peg-in-hole insertion:
+- great showcase for force/position hybrid behavior.
+
+===============================================================================
+15) NOTES / IMPORTANT
+===============================================================================
+- This project is simulation-only. If later porting to a real robot, controller design must consider sensor noise, delays, torque control availability, etc.
+- Keep everything deterministic and logged.
+- Always prefer explicit constraints and safety over “it works sometimes”.
+
+END OF PROJECT_PLAN.txt

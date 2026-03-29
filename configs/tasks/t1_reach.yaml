@@ -1,0 +1,24 @@
+# Task T1: Free-space reach & place (non-contact)
+# Goal: move end-effector to target pose with orientation constraint
+
+task_name: "reach_and_place"
+
+workspace:
+  # Target pose randomization bounds
+  x_range: [0.3, 0.6]    # meters (forward)
+  y_range: [-0.3, 0.3]   # meters (left/right)
+  z_range: [0.1, 0.4]    # meters (height)
+  yaw_range: [-3.14, 3.14]  # orientation
+
+tolerances:
+  position_tolerance: 0.01   # meters
+  orientation_tolerance: 0.1 # radians
+  consecutive_steps: 10      # steps within tolerance for success
+
+orientation_constraint:
+  enabled: true
+  tool_axis: [0, 0, 1]  # Tool Z-axis points down
+
+retry:
+  max_attempts: 3
+  retreat_distance: 0.05  # meters
