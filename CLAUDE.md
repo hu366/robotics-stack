@@ -1,6 +1,136 @@
-作者：弗雷尔卓德
-链接：https://www.zhihu.com/question/1920708362489828723/answer/1920722548087292522
-来源：知乎
-著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+# AGENTS.md
 
-很明显目前，VLA属于愚公移山，精卫填海（暴力求解器，数据量巨大，成本巨高，永远无法满足任务要求）盲人摸象啊（稳定性和可解释性低）比较挺神奇的是，VLA初衷是不错的技术，但当下纯黑盒+数据 end2end 已到瓶颈期，已无更多提升空间，只能魔改网络。VLA 当前的算法本质，就是过拟合，有的人说，那我采数据不得了？机器人任务需要的数据量，远远几个数量级的大于imageNet，至少应该是[万亿]个demonstration。所以暴力过拟合是没有未来的，会撞南墙，真正的AGI 还得smart一点，找到任务和场景共性。前言：VLA 容易引导大量研究者，从深度研究机器人任务和场景，变成粗暴叠数据和魔改网络，简单任务上overfitting，弗雷哥希望大家多思考，多思考！谨慎对待 VLA：从“摆拍式end2end泛化”到可解释机器人学习的路线图现阶段多数 VLA（Vision-Language-Action）系统本质仍是升级版行为克隆（BC），靠大规模数据与算力“硬凿”效果，泛化脆弱、难以复现。在任务难度、场景复杂度、维度数量增加后，数据需求和失败概率呈指数级爆炸；“pick-place 拼题式”评测掩盖了这一点。真正可扩展的机器人智能必须以可解释的任务建模、3D几何/物理建模、可验证的控制与规划模块为核心，而不仅是端到端炼丹。我提出一个更稳健的技术路线：任务解析 → 语义到几何的桥梁 → 结构化世界模型（SE(3)、拓扑/约束图）→ 可解释策略合成 → 低层运动/力控制闭环 + 可靠评测协议。建议行业建立标准化、多维度难度递增的 benchmark、严格的复现与统计报告规范，杜绝“摆拍式成功率”。 换句话说：闭眼炼丹 end2end 那一套，别再拿来糊弄人了。劣币驱逐良币的戏码，到我这里就刹车。 再直白点：这一锅端到端神药，我先翻个底朝天；谁再拿“玄学 trick”糊我，我就拿 SE(3) 当板砖拍回去。1. 问题背景：为什么“语言巨人，行动矮子”？先把丑话放前头：VLA 现在这套路数，真就是“语言巨人，行动矮子”。嘴上 AGI，手上 pick-place，嘴上说泛化，脚下全靠摆拍。跨模态跨度过大：从自然语言直接映射到高维连续控制（Action），中间缺失了任务逻辑、物理约束、空间几何等关键桥梁。数据与算力的“劣币逻辑”：堆数据/算力短期见效，但不可解释、不稳定、不可扩展；复杂任务下成本爆炸。评测与宣传脱节：大量工作在最简单的 2D 桌面、少量物体、短轨迹下报“90%+ 成功率”；统计口径不透明，任务难度可被随意“调参”。黑盒不可控：系统边界模糊——“能不能倒水/切洋葱/织毛衣？”没有可验证的阶段性能力定义和安全边界。1.5 为什么公司还在推 VLA？（并不是因为它“效果好、通用、便宜、快”）效果好吗？不是。 多数实验集中在极简任务与环境，真实复杂任务掉线严重。通用性好吗？也不是。 脱离任务难度谈“通用”就是耍流氓——维度一增，立刻崩。便宜吗？表面便宜。 省的是人类建模思考的“脑力成本”，贵的是暴力算力与海量数据采集/清洗。推理快吗？是“快决策”，但“快”不等于“对”。抛开效果谈速度，同样是耍流氓。ChatGPT 的成功无法直接迁移到机器人：语言到文本的映射距离远小于语言到高维连续控制。Action 这一步跨越过大，端到端大模型极易在 mapping 上失败。行动远比视觉/语言复杂：一条完整的运动学/动力学轨迹涉及时空连续约束、接触力学、工具在手 manipulation 等，这些维度的数据极其稀缺，也难以标准化标注。<img src="https://picx.zhimg.com/50/v2-c4274faf8acfd5c74be53389621d1359_720w.jpg?source=2c26e567" data-rawwidth="800" data-rawheight="533" data-size="normal" data-caption="" data-original-token="v2-6db7db6a5776ab5a07d584b4c0fa91ef" data-default-watermark-src="https://picx.zhimg.com/50/v2-b3b8ceb5b6d658e3501b832cb61f82a0_720w.jpg?source=2c26e567" class="origin_image zh-lightbox-thumb" width="800" data-original="https://picx.zhimg.com/v2-c4274faf8acfd5c74be53389621d1359_r.jpg?source=2c26e567"/>2. 典型 VLA 技术路径与症结典型流水线：视觉编码器（或 VLM）→ 语言指令编码 → 融合模块 → 行为解码器（policy / value / affordance）→ 低层控制。数据驱动的 BC/IL (Imitation Learning) 升级版：如 RT-1[2]、RT-2[1]、RT-X[3]、OpenVLA[4]、Pi0[5]、ReKep[6] 等，大多基于大量人类示教/视频/遥操作数据，配合序列建模或扩散策略。问题：数据分布极窄：多为 pick-place、抓取等简单、单物体场景。行为粒度粗/不一致：同一动作序列因示教者差异而带来巨大方差。缺乏任务语义层的精确定义：靠 prompt/自然语言“拼凑”策略，导致泛化失效时难以解释。<img src="https://pic1.zhimg.com/50/v2-01562978bdc66bbe17e61e99d3e2bb43_720w.jpg?source=2c26e567" data-rawwidth="1240" data-rawheight="652" data-size="normal" data-caption="" data-original-token="v2-e153773c36186ac689d2ff806b4e42f6" data-default-watermark-src="https://picx.zhimg.com/50/v2-7c7573d331f4c279ebd345b1d995e183_720w.jpg?source=2c26e567" class="origin_image zh-lightbox-thumb" width="1240" data-original="https://pic1.zhimg.com/v2-01562978bdc66bbe17e61e99d3e2bb43_r.jpg?source=2c26e567"/>“大模型 + 规划”尝试：PaLM-SayCan[7]、Code as Policies[8]、Inner Monologue[9]、LLM-As-Planner[10] 等让 LLM 负责高层分解，再调用策略库。问题：语言规划与真实物理约束脱钩，需额外几何/动力学验证。规划模块本身仍然不可解释/不可验证，且容易被 hallucination 误导。<img src="https://picx.zhimg.com/50/v2-5a2e6cc0d45a3f4a492953e9fd0baea0_720w.jpg?source=2c26e567" data-rawwidth="1370" data-rawheight="892" data-size="normal" data-caption="" data-original-token="v2-67b59502ac8c8ed56be444db5c4c3eac" data-default-watermark-src="https://pica.zhimg.com/50/v2-ff85cd7480a7bc433518b6797e884307_720w.jpg?source=2c26e567" class="origin_image zh-lightbox-thumb" width="1370" data-original="https://pic1.zhimg.com/v2-5a2e6cc0d45a3f4a492953e9fd0baea0_r.jpg?source=2c26e567"/>“演示合成/数据增强”类工作：GR-1[11]、RoboCasa[12]、DROID[13] 等通过合成或聚合多源数据提升覆盖面，但仍缺缺失严谨的 3D 约束与物理一致性检查。未来工业和学术界，一定是可解释的泛化（强任务理解），不可能是莫名其妙，乱七八糟数据炼丹的泛化，如果莫名其妙，一定会伴随极其不稳定，不可复现的存在（除非任务简单+摆拍），不然任务难度每提高一级，场景复杂一点，数据需求一定会指数级（千倍）万倍，亿倍上升。3. “指数爆炸”的本质：任务维度 × 场景复杂度设任务复杂度由下列维度驱动：对象数量与多样性（|O|）空间自由度（姿态、遮挡、叠放、容器内外等）动作序列长度/分支数（|A|，分层策略深度）动力学与接触复杂度（力控制、柔性物体、液体）在多数 VLA 架构中，训练样本需求近似与这些维度的组合呈指数关系（别问，问就是“一算就露馅”）：因此，当从“桌面单物体抓取”→“多物体遮挡+柔性物体操作+长序列”时，所需有效示例会暴涨 100×、1000× 乃至 1004345×（你要愿意吹，10^5、10^6 也行）。没有结构化归纳偏置（inductive bias）的模型，只能靠数据穷举——然后再告诉大家：看，我用 trick work 了。。action 运动学轨迹本身复杂程度，远超language和vision本身，但数据又极其稀少。举个例子：vision：你识别一个脚上肿块组织，language:  肿块组织不好，要及时切除action： 精准从各种器械里找到手术刀，在手上in hand manipulation， 调解手术刀的位置，计算整个患者组织和手术刀的空间坐标系，不同策略和力度，剥离一层层组织，绕开血管，一点点从脚趾骨和经络旁边剥离这个肿块组织，4. “摆拍式泛化”六大常见套路（请对号入座）友情提示：以下任何一条你中了，成功率别报 90%，报个“幽默 60%”都算老实人。1）任务拆名不拆实：把同一类 pick-place 伪装成几十个“任务名”。首先最重要的，选个最简单的任务，任务极其简单，也就是pick-place：抓起来，放下去，抓起来，放下去。<img src="https://pic1.zhimg.com/50/v2-2511bed0f63bcaede5b68f4fe433276b_720w.jpg?source=2c26e567" data-rawwidth="1200" data-rawheight="336" data-size="normal" data-caption="" data-original-token="v2-772b33f51212c47aca800a03ac96b525" data-default-watermark-src="https://picx.zhimg.com/50/v2-137f3f5ae762efbe428030a1a19ec8a9_720w.jpg?source=2c26e567" class="origin_image zh-lightbox-thumb" width="1200" data-original="https://pic1.zhimg.com/v2-2511bed0f63bcaede5b68f4fe433276b_r.jpg?source=2c26e567"/>多一个曲线或者多步骤轨迹，系统都直接发散无法收敛了把百事可乐放在余华《活着》上面 把七喜放在《天利三十八套》上面 把可口可乐放在《泰勒新专辑》上面 把全脂牛奶放在梵高《星空》上面 把脱脂牛奶放在农夫山泉右边 把蜜雪冰城柠檬水放在线性代数左边 ………恭喜你，100 个“通用任务”到手，其实都是一个 pick-place。万能 60%，闭眼都能过审。很多人比较搞笑，他们为了装逼，pick-place，不叫pick-place，还无限细分，这样隐藏自己10个task，实际上就是一个task。比如： put the bottle on the desk比如：pick the pen to the pencil case比如：move the bowl on the box你但凡选个倒水，叠衣服，刷盘子，之类的，大概率0.001%的成功率起步，不给0%是因为过不了初审，但弗雷哥要说，倒水这个任务，vla肯定是0%起步。2）背景极简：纯色桌面 + 1~2 个物体，避免视觉干扰。通常就是桌面上，完完全全纯色的背景，背景就只有一个物体，最多两个物体。多一个都怕出错。只能1-2个。但人类生活中，肯定是非常clutter的环境，所以1-2个物体，这种情况根本不存在。以下场景VLA全GG：<img src="https://picx.zhimg.com/50/v2-37840222aa6f70b1cbbd4ebb886cd43d_720w.jpg?source=2c26e567" data-rawwidth="1440" data-rawheight="1080" data-size="normal" data-caption="" data-original-token="v2-e0cd26439c273d74e2586b13edac7db6" data-default-watermark-src="https://picx.zhimg.com/50/v2-64c29309ebc467620757b0c84ce15278_720w.jpg?source=2c26e567" class="origin_image zh-lightbox-thumb" width="1440" data-original="https://picx.zhimg.com/v2-37840222aa6f70b1cbbd4ebb886cd43d_r.jpg?source=2c26e567"/>3） 二维近似：忽略三维姿态/遮挡/容器/嵌套等情形。人类是生活在3D空间，很多情景，1） 物体是有空间位子position和姿态orientation变化2）物体几个是很可能overlap到一起的比如以下3D情况，VLA根本无法处理。<img src="https://pica.zhimg.com/50/v2-dc6a5492e57b1915201e40b10fc5edbf_720w.jpg?source=2c26e567" data-rawwidth="1440" data-rawheight="1920" data-size="normal" data-caption="" data-original-token="v2-2f0e853f5440a40bf966f2dbd0a2d91f" data-default-watermark-src="https://pica.zhimg.com/50/v2-75e7532b65613a61b6b572164bdabf54_720w.jpg?source=2c26e567" class="origin_image zh-lightbox-thumb" width="1440" data-original="https://pic1.zhimg.com/v2-dc6a5492e57b1915201e40b10fc5edbf_r.jpg?source=2c26e567"/>4） 统计口径模糊：采样次数、失败处理、难度分级不公开。5） 人类干预没算进公式：失败重置、示教再来、后期剪辑不透明。6） demo 挑选最佳角度：镜头、光照、抓取点都事先调好。7）VLA 就是一个BC本身理论上来说，AI应该观察人类一次演示数据就OK的，但是，目前VLA，需要几百次数据，做一个单一2D场景，pick place的简单任务，跟大算力枚举，基本没区别，真是糟蹋算力。一个任务，最多3次few shots了，再教下去，没有耐心了，谈什么智能。弗雷哥给女朋友演示3次倒牛奶，她都不会。后续的 VLA 本质上就是一个升级版BC，没有太多新的东西。很多纯CS出身的人，常常陷入误区，效果不好是因为这个框架可以微调改进，效果从90%可以微调到95%，哦耶，这样赢了。问题是，本身90%这个，效果就是极其不科学的计算出来的准确率，成功率，摆拍30次，成功了27次，你给我说你这个任务成功率90%。弗雷哥揭露这些人，怎么得出90%的这个效果的，实际上你成功率100%都可以，完全你自己去控制难度。重点来了：机器人理解学习人类世界，必须利用空间几何计算进行modeling ，所以只有建立在 interpretable 的 robot learning 才是稳扎稳打，才是一步一个脚印地发展技术，建立护城河。任何一片不包含几何计算的robot learning的论文，都是地基不稳，后面误差完全不可控，苦海无边回头是岸。所以说，现在公司主流的都是VLA，包括DeepMind Gemini Robots, 还有一种公司都采用VLA技术，为什么呢？1. 因为效果好吗？不是，效果极差2. 因为通用性好吗？不是，抛开任务难度谈通用是耍流氓。3. 因为便宜吗？是，也不是。便宜的是人脑，让人类不需要思考这么多，贵的是算力，因为暴力求解需要大量算力。4. 因为推理速度快吗？啊对，他就是可以很快抉择，就是快。指整个系统在新的任务下和指令干预下，响应速度快。但是抛下效果谈速度，就是耍流氓。ChatGPT的成功，没办法复现在机器人上。只能做一个上层接口，action这一步，跨得太大，大模型，注定会 mapping 失败。 什么rekep，还有一堆pi0的demo，没有一个敢放到icra和iros给大家展示，一展示，摆拍的套路，全露馅。最最最重要的来了：Boundary 不清晰，完全黑盒是最致命的弱点。你根本不清楚，VLA到哪个阶段可以做什么任务。比如VLA哪个阶段可以切洋葱，哪个阶段可以织毛衣，哪个阶段可以拆笔记本电脑、哪个阶段可以做手术？完完全全都未知，或者说完全不可能。VLA鼓吹的zero shot，怎么可能呢？连人都做不到zero shot，哦，你没见过洋葱，你没拨过洋葱，你如何莫名其妙让ChatGPT给你，倒水，扫地，抓拿放，关门等一些列，一点不相关任务，莫名其妙涌现，拨洋葱技能，哦，我涌现了复杂的拨洋葱skill，如果你一层一层一层地拨开目前end2end的 VLA的洋葱内心，你会发现，你会鼻酸，你发现什么tm的都没有哦。都是一团酱胡。弗雷哥眼里真的的robot learning未来可靠的路径：模块化视角（Language → Task Graph → Geometry → Control）1) 任务解析与逻辑建模将自然语言解析成 任务图/选项图（options/skills），包含前置条件/后置条件、约束、失败恢复策略。引入形式化语言（例如 PDDL、Signal Temporal Logic）作为可验证的中间表示把任务分成基本的构成单元 element，能够解析 key 步骤，每个任务步骤都可以 track2) 语义-几何桥梁（Semantic→Geometric Grounding）构建 3D 场景图：物体位姿、接触关系、可达性、力约束。使用 SE(3) Transformer、Equivariant Networks、Neural Fields/Occupancy ，高斯泼溅等显式建模空间 （一切运动轨迹都能可控可算，可解释性的呈现）。3) 可解释策略合成组合技能库（motion primitives、操作技能）+ 搜索/优化（MPC、RRT*、CHOMP）。策略是可视化的：能被审查、调试、重用，不是黑盒 token 序列。4) 低层控制闭环力/位姿闭环控制、接触模型（impedance control）、实时状态估计。模型预测控制（MPC）或分层 RL（高层 symbolic / 低层 continuous）数据策略：少而精 vs 海量同质少样本示教（3~5 次）应成为目标，甚至one shot，通过结构化归纳偏置提升数据效率。真实世界 + 仿真域随机化结合，但仿真需保证几何/物理一致性，而非仅纹理随机化。标准化数据协议：记录任务难度、失败样本、reset 方式、时间戳等，公开原始和失败案例。评测与复现规范难度分级基准：对象数、遮挡程度、姿态变化、柔性/液体、长序列等维度分层。统计学报告：置信区间（Wilson/Binomial CI）、显著性检验、随机种子、试验次数。公开失败视频与策略日志：避免“成功片段剪辑”。跨实验室复现：提供校准流程（传感器、机械臂参数）、统一任务定义与评分脚本。弗雷哥不是不鼓励大家用AI，弗雷哥完全不鼓励，没有一点modeling，没有一点可解释性，没有一点水平，没有一点对于机器人任务和场景本身理解和建模的系统。纯End2end，视觉对齐尚且一大堆问题，更复杂，更具有挑战性的动态物理世界，问题远比视觉对齐难100倍。因此目前框架肯定不太可能实现VLA的爆发增长[1] RT-1: Brohan, A., et al. (2022). RT-1: Robotics Transformer for Real-World Control at Scale. In Proceedings of Robotics: Science and Systems (RSS).[2] RT-2: Brohan, A., et al. (2023). RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control. arXiv preprint arXiv:2307.15818.[3] RT-X: Brohan, A., et al. (2023). Open X-Embodiment: Robotic Learning Datasets and RT-X Models. Project Website. [4] OpenVLA: Kim, M. J., et al. (2024). OpenVLA: An Open-Source Vision-Language-Action Model. In Conference on Robot Learning (CoRL).[5] π₀ (Pi-Zero): Physical Intelligence, Inc. (2024). π₀: A Foundation Model for Robotics. Project Website and Technical Announcements.[6] ReKep: Bai, Y., et al. (2024). ReKep: Relational Keypoint Constraints for Category-Level Robotic Manipulation. arXiv preprint arXiv:2409.01652.[7] PaLM-SayCan: Ahn, M., et al. (2022). Do As I Can, Not As I Say: Grounding Language in Robotic Affordances. arXiv preprint arXiv:2204.01691.[8] Code as Policies: Liang, J., et al. (2023). Code as Policies: Language Model Programs for Embodied Control. In IEEE International Conference on Robotics and Automation (ICRA).[9] Inner Monologue: Huang, W., et al. (2023). Inner Monologue: Adding Unseen Tools to a Robot's Repertoire. In Conference on Robot Learning (CoRL).[10] LLM-As-Planner:  Singh, I., et al. (2023). ProgPrompt: Generating Situated Robot Task Plans using Large Language Models. In IEEE International Conference on Robotics and Automation (ICRA).[11] GR-1: Fourier Intelligence (2023). Fourier GR-1 Humanoid Robot Introduction. Technical Datasheet. (GR-1是商业化机器人，其技术细节主要通过官方技术手册和公告发布)。[12] RoboCasa: Weng, Z., et al. (2024). RoboCasa: Large-Scale Simulation of Everyday Tasks for Generalist Robots. arXiv preprint arXiv:2405.18833.[13] DROID: Lakshmiprasad, A., et al. (2024). DROID: A Large-Scale In-the-Wild Robot Manipulation Dataset. arXiv preprint arXiv:2403.02021.
+本文件定义了编码代理在这个仓库中的工作方式。
+
+## 仓库目标
+
+`robotics-stack` 是一个模块化、可解释的机器人系统基线。预期执行流程为：
+
+`instruction -> task parser -> grounding -> world model -> planner -> skills -> control -> evaluation`
+
+代理在工作时应保持这套分解结构。不要把本应属于某个明确模块边界的改动，压缩成一条不透明的端到端路径。
+
+## 核心原则
+
+1. 优先使用显式接口，而不是隐式耦合。
+2. 保持任务语义、几何 grounding、规划、执行和评估彼此分离。
+3. 通过 trace、结构化输出和测试，让系统行为可检查。
+4. 在引入抽象、启发式或学习式复杂度之前，优先采用简单、确定性的基线方案。
+5. 当行为发生变化时，应修改真正拥有该行为的最近一层，而不是在下游打补丁。
+
+## 仓库结构说明
+
+- `apps/`：可运行入口，例如单任务执行、trace 回放和 benchmark 运行
+- `interfaces/`：共享 schema 和契约
+- `modules/task_parser/`：将指令解析为 `TaskSpec`
+- `modules/grounding/`：语义到场景的 grounding
+- `modules/world_model/`：状态存储和世界表示
+- `modules/planner/`：基于 skill 的计划构建
+- `modules/skills/`：可复用 skill 定义与查找
+- `modules/control/`：执行层
+- `eval/`：benchmark 输入和报告
+- `sim/`：面向仿真的资产与任务脚手架
+- `docs/`：架构与协议文档
+- `tests/`：流水线与 CLI 的回归测试
+
+## 工作规则
+
+### 1. 尊重模块归属
+
+- 解析相关改动应放在 `modules/task_parser/` 和 `interfaces/task_spec.py`。
+- grounding 相关改动应放在 `modules/grounding/` 以及相关 world-state 接口。
+- 规划逻辑应放在 `modules/planner/`，并消费结构化输入，而不是重新解析原始文本。
+- 执行行为应放在 `modules/control/`。
+- 跨模块的数据结构应定义在 `interfaces/` 中，不要在实现里临时拼装。
+
+### 2. 保持流水线可检查
+
+- 修改流水线行为时，应保留或增强 execution trace。
+- 当信息跨模块传递时，优先使用结构化字段，而不是自由文本字符串。
+- 如果 CLI 会写出 artifact，在任务没有明确要求 breaking change 的情况下，应保持输出格式稳定。
+
+### 3. 测试是改动的一部分
+
+- 任何非平凡的行为变更，都要新增或更新测试。
+- 优先为改动所在模块补充聚焦的单元测试。
+- 除非用户明确要求故意改变行为，否则应保持 `tests/test_pipeline.py` 通过。
+
+### 4. 文档必须跟上设计变更
+
+- 用户可见的工作流变更，应更新 `README.md`。
+- 架构预期、任务 schema 或 benchmark protocol 变化时，应更新 `docs/` 下文档。
+- 不要让 `AGENTS.md`、文档和代码对流水线的描述互相矛盾。
+
+## 开发工作流
+
+本仓库使用 `uv` 执行本地命令。
+
+常用命令：
+
+```powershell
+uv sync --group dev
+uv run pytest -q
+uv run ruff check .
+uv run mypy .
+uv run python apps/run_task.py "place the bottle on the tray"
+uv run python apps/run_benchmark.py --cases eval/benchmarks/tabletop_v0.json
+```
+
+如果修改了 CLI，在条件允许时应本地运行最相关的 CLI 命令做验证。
+
+## 实现指导
+
+### 添加新能力时
+
+1. 先扩展相关接口类型。
+2. 再实现拥有该能力的模块。
+3. 以最小耦合方式把新数据贯通到相邻层。
+4. 添加或更新测试。
+5. 如果该能力改变了公开行为或仓库约定，则更新文档。
+
+### 修改规划行为时
+
+- 优先使用可复用的 skill step，而不是为整条指令写特殊分支。
+- 保持计划可读、可调试。
+- 不要把执行层假设直接编码进 parser 输出。
+
+### 修改评估或 benchmark 时
+
+- 保持 benchmark case 可复现。
+- 尽量保留明确的成功标准、重试次数、随机种子和失败分类。
+- 不要在没有更新协议或测试依据的情况下夸大成功效果。
+
+## 风格要求
+
+- 目标 Python 版本为 3.11。
+- 代码应兼容仓库中严格的 `mypy` 配置。
+- 遵循 `pyproject.toml` 中配置的 `ruff` 规则。
+- 在仓库已有模式下，优先使用小而类型明确的函数，以及基于 dataclass 或 schema 的接口。
+- 除非至少有两个调用点能立即受益，否则不要引入预防式抽象。
+
+## 需要避免的事情
+
+- 不要在模块间引入隐藏的全局状态。
+- 当已有类型化结构存在时，不要绕过接口直接传 raw dict。
+- 不要把仅供 benchmark 使用的捷径混入生产路径，除非显式标明。
+- 不要在没有明确必要的情况下增加重量级依赖。
+- 不要因为更短，就用单体式捷径替代模块化流水线逻辑。
+
+## 验证清单
+
+在完成任务前，代理通常应根据情况执行以下检查：
+
+1. 运行目标测试或 `uv run pytest -q`。
+2. 如果改了 Python 文件，运行 `uv run ruff check .`。
+3. 如果改了接口或类型密集代码，运行 `uv run mypy .`。
+4. 对受影响的 CLI 入口做一次基本验证。
+5. 确认文档与实现行为保持一致。
+
+## 决策标准
+
+当存在多个可选方案时，优先选择满足以下条件的方案：
+
+- 保持流水线模块化，
+- 提升可检查性，
+- 最容易测试，
+- 并且符合当前仓库的基线复杂度。
