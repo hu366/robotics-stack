@@ -132,6 +132,8 @@ uv run ruff check .
 uv run mypy .
 uv run python apps/run_task.py "place the bottle on the tray"
 uv run python apps/run_benchmark.py --cases eval/benchmarks/tabletop_v0.json
+uv sync --group dev --group sim
+uv run python apps/run_mujoco_smoke.py --steps 500
 ```
 
 ## Docker

@@ -10,3 +10,4 @@ __pycache__/
 pytest-cache-files-*/
 artifacts/
 !artifacts/.gitkeep
+xtrainer-leisaac/
