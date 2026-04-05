@@ -1,0 +1,15 @@
+.git
+.gitignore
+.mypy_cache
+.pytest-cache
+.pytest-tmp
+.ruff_cache
+.tmp-tests
+.uv-cache
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+pytest-cache-files-*
+artifacts

@@ -1,0 +1,37 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: robotics-stack:dev
+    working_dir: /workspace
+    command:
+      - uv
+      - run
+      - python
+      - apps/run_task.py
+      - place the bottle on the tray
+      - --trace-out
+      - /workspace/artifacts/trace.json
+    volumes:
+      - ./artifacts:/workspace/artifacts
+
+  benchmark:
+    image: robotics-stack:dev
+    working_dir: /workspace
+    command:
+      - uv
+      - run
+      - python
+      - apps/run_benchmark.py
+      - --cases
+      - eval/benchmarks/tabletop_v0.json
+
+  test:
+    image: robotics-stack:dev
+    working_dir: /workspace
+    command:
+      - uv
+      - run
+      - pytest
+      - -q

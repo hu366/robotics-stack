@@ -1,0 +1,26 @@
+[
+  {
+    "case_id": "case-001",
+    "scene_setup": "single bottle and tabletop target surface",
+    "object_count": 2,
+    "clutter_level": "low",
+    "instruction": "place the bottle on the tray",
+    "allowed_retries": 1,
+    "success_criteria": ["target_relation_satisfied"],
+    "failure_taxonomy": ["object_not_found", "grasp_failed", "placement_failed"],
+    "seed": 7,
+    "repeat_count": 1
+  },
+  {
+    "case_id": "case-002",
+    "scene_setup": "single cup and shelf target surface",
+    "object_count": 2,
+    "clutter_level": "low",
+    "instruction": "put the cup on the shelf",
+    "allowed_retries": 1,
+    "success_criteria": ["target_relation_satisfied"],
+    "failure_taxonomy": ["object_not_found", "grasp_failed", "placement_failed"],
+    "seed": 11,
+    "repeat_count": 1
+  }
+]

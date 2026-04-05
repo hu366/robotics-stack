@@ -1,0 +1,12 @@
+.mypy_cache/
+.pytest-cache/
+.pytest-tmp/
+.ruff_cache/
+.tmp-tests/
+.uv-cache/
+.venv/
+__pycache__/
+*.py[cod]
+pytest-cache-files-*/
+artifacts/
+!artifacts/.gitkeep
