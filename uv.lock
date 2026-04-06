@@ -497,6 +497,10 @@ wheels = [
 name = "robotics-stack"
 version = "0.1.0"
 source = { virtual = "." }
+dependencies = [
+    { name = "numpy" },
+    { name = "pillow" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -511,6 +515,10 @@ sim = [
 ]
 
 [package.metadata]
+requires-dist = [
+    { name = "numpy", specifier = ">=1.26.0" },
+    { name = "pillow", specifier = ">=10.4.0" },
+]
 
 [package.metadata.requires-dev]
 dev = [

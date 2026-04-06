@@ -7,3 +7,6 @@ System layers:
 3. Build a plan from reusable skills
 4. Execute via control loops
 5. Evaluate with reproducible metrics and traces
+
+Stage-1 RGBD mapping, scene-graph state, artifact contracts, and semantic-to-geometric
+grounding interfaces are specified in `docs/rgbd_mapping_grounding_architecture.md`.

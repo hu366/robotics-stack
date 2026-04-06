@@ -40,7 +40,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    import mujoco  # type: ignore[import-untyped]
+    import mujoco
 
     scene_path = args.scene if args.scene.is_absolute() else ROOT / args.scene
     model = _load_model(mujoco, scene_path)
