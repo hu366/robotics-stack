@@ -1,0 +1,230 @@
+{
+  "scene_id": "mujoco_mapping_panda",
+  "root_frame_id": "world",
+  "revision": 0,
+  "nodes": [
+    {
+      "node_id": "floor",
+      "label": "floor",
+      "node_type": "support_surface",
+      "center_pose": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "bbox_extent_m": [
+        2.0,
+        2.0,
+        0.001
+      ],
+      "geometry_anchor_id": "floor",
+      "semantic_tags": [
+        "support_surface"
+      ],
+      "state_tags": [
+        "static"
+      ],
+      "properties": {
+        "known_from_sim": "true"
+      },
+      "provenance": []
+    },
+    {
+      "node_id": "mapping_box",
+      "label": "mapping_box",
+      "node_type": "sim_object",
+      "center_pose": [
+        0.55,
+        0.0,
+        0.03,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "bbox_extent_m": [
+        0.050000000000000044,
+        0.05,
+        0.06
+      ],
+      "geometry_anchor_id": "mapping_box",
+      "semantic_tags": [
+        "sim_object"
+      ],
+      "state_tags": [
+        "static"
+      ],
+      "properties": {
+        "known_from_sim": "true"
+      },
+      "provenance": []
+    },
+    {
+      "node_id": "robot_base",
+      "label": "robot_base",
+      "node_type": "robot",
+      "center_pose": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "bbox_extent_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "geometry_anchor_id": "robot_base",
+      "semantic_tags": [
+        "robot"
+      ],
+      "state_tags": [
+        "static"
+      ],
+      "properties": {},
+      "provenance": []
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "floor_supports_mapping_box",
+      "source_node_id": "floor",
+      "target_node_id": "mapping_box",
+      "relation_type": "supports",
+      "relation_family": "support",
+      "directed": true,
+      "numeric": {},
+      "properties": {},
+      "provenance": [
+        {
+          "source_type": "inferred_rule",
+          "source_id": "scene_graph_builder",
+          "confidence": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "edge_id": "mapping_box_supported_by_floor",
+      "source_node_id": "mapping_box",
+      "target_node_id": "floor",
+      "relation_type": "supported_by",
+      "relation_family": "support",
+      "directed": true,
+      "numeric": {},
+      "properties": {},
+      "provenance": [
+        {
+          "source_type": "inferred_rule",
+          "source_id": "scene_graph_builder",
+          "confidence": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "edge_id": "mapping_box_contacts_floor",
+      "source_node_id": "mapping_box",
+      "target_node_id": "floor",
+      "relation_type": "contacts",
+      "relation_family": "contact",
+      "directed": true,
+      "numeric": {},
+      "properties": {},
+      "provenance": [
+        {
+          "source_type": "inferred_rule",
+          "source_id": "scene_graph_builder",
+          "confidence": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "edge_id": "robot_base_can_reach_floor",
+      "source_node_id": "robot_base",
+      "target_node_id": "floor",
+      "relation_type": "can_reach",
+      "relation_family": "reachability",
+      "directed": true,
+      "numeric": {},
+      "properties": {},
+      "provenance": [
+        {
+          "source_type": "inferred_rule",
+          "source_id": "scene_graph_builder",
+          "confidence": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "edge_id": "floor_reachable_by_robot_base",
+      "source_node_id": "floor",
+      "target_node_id": "robot_base",
+      "relation_type": "reachable_by",
+      "relation_family": "reachability",
+      "directed": true,
+      "numeric": {},
+      "properties": {},
+      "provenance": [
+        {
+          "source_type": "inferred_rule",
+          "source_id": "scene_graph_builder",
+          "confidence": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "edge_id": "robot_base_can_reach_mapping_box",
+      "source_node_id": "robot_base",
+      "target_node_id": "mapping_box",
+      "relation_type": "can_reach",
+      "relation_family": "reachability",
+      "directed": true,
+      "numeric": {},
+      "properties": {},
+      "provenance": [
+        {
+          "source_type": "inferred_rule",
+          "source_id": "scene_graph_builder",
+          "confidence": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "edge_id": "mapping_box_reachable_by_robot_base",
+      "source_node_id": "mapping_box",
+      "target_node_id": "robot_base",
+      "relation_type": "reachable_by",
+      "relation_family": "reachability",
+      "directed": true,
+      "numeric": {},
+      "properties": {},
+      "provenance": [
+        {
+          "source_type": "inferred_rule",
+          "source_id": "scene_graph_builder",
+          "confidence": 1.0,
+          "notes": null
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "object_count": 3,
+    "edge_count": 7,
+    "support_gap_m": 0.03,
+    "contact_gap_m": 0.02,
+    "reachable_radius_m": 0.9
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "scene_id": "mujoco_mapping_panda",
+  "camera_name": "wrist_rgbd",
+  "frame_count": 2,
+  "input_point_count": 38400,
+  "total_points": 18,
+  "voxel_size": 0.02,
+  "bbox": {
+    "min": [
+      0.5396725989897764,
+      -0.02014768018057741,
+      0.4465248297440464
+    ],
+    "max": [
+      0.5679446011270743,
+      0.18117331511071838,
+      0.5339755400355208
+    ]
+  },
+  "object_count": 3,
+  "artifacts": {
+    "poses": "C:\\Users\\Administrator\\Desktop\\robotics-stack\\.tmp-tests-cli-run\\poses.json",
+    "frame_metadata": "C:\\Users\\Administrator\\Desktop\\robotics-stack\\.tmp-tests-cli-run\\frame_metadata.json",
+    "global_cloud": "C:\\Users\\Administrator\\Desktop\\robotics-stack\\.tmp-tests-cli-run\\global_cloud.ply",
+    "scene_graph": "C:\\Users\\Administrator\\Desktop\\robotics-stack\\.tmp-tests-cli-run\\scene_graph.json",
+    "summary": "C:\\Users\\Administrator\\Desktop\\robotics-stack\\.tmp-tests-cli-run\\summary.json",
+    "trace": "C:\\Users\\Administrator\\Desktop\\robotics-stack\\.tmp-tests-cli-run\\trace.json"
+  }
+}

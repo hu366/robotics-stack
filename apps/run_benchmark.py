@@ -37,7 +37,7 @@ def main() -> None:
     grounder = SceneGrounder()
     world_model = WorldModelStore()
     planner = TaskPlanner()
-    executor = PlanExecutor()
+    executor = PlanExecutor(world_model=world_model)
 
     report: list[dict[str, object]] = []
     for case in cases:
@@ -53,13 +53,13 @@ def main() -> None:
         )
         plan = planner.build_plan(task, world_state)
         trace.add_event("planner", "plan_built", "success", payload=plan.to_dict())
-        executor.execute(plan, trace)
+        result = executor.execute(plan, trace)
         report.append(
             {
                 "case_id": case["case_id"],
                 "suite": args.suite,
                 "instruction": case["instruction"],
-                "success": True,
+                "success": result.success,
                 "event_count": len(trace.events),
             }
         )

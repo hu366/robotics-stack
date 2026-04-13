@@ -32,7 +32,7 @@ def main() -> None:
     grounder = SceneGrounder()
     world_model = WorldModelStore()
     planner = TaskPlanner()
-    executor = PlanExecutor()
+    executor = PlanExecutor(world_model=world_model)
 
     task = task_parser.parse(args.instruction)
     trace = ExecutionTrace(trace_id=f"trace-{uuid4().hex[:8]}", task_id=task.task_id)

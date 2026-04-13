@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -56,9 +57,19 @@ def _load_model(mujoco: Any, scene_path: Path) -> Any:
     except ValueError:
         model_xml = scene_path.read_text(encoding="utf-8")
         assets: dict[str, bytes] = {}
-        for file_path in scene_path.parent.rglob("*"):
-            if file_path.is_file():
-                rel = file_path.relative_to(scene_path.parent).as_posix()
+        allowed_suffixes = {".xml", ".stl", ".obj", ".png", ".jpg", ".jpeg", ".mtl"}
+        search_roots = [scene_path.parent, ROOT / "sim"]
+        for search_root in search_roots:
+            if not search_root.exists():
+                continue
+            for file_path in search_root.rglob("*"):
+                if not file_path.is_file():
+                    continue
+                if file_path.suffix.lower() not in allowed_suffixes:
+                    continue
+                rel = os.path.relpath(file_path, scene_path.parent).replace("\\", "/")
+                if rel in assets:
+                    continue
                 assets[rel] = file_path.read_bytes()
         return mujoco.MjModel.from_xml_string(model_xml, assets=assets)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -110,7 +111,6 @@ def test_scene_graph_builder_infers_support_and_reachability() -> None:
 
 
 def test_run_mujoco_mapping_cli_writes_expected_artifacts(
-    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     intrinsics = CameraIntrinsics(width=2, height=2, fx=1.0, fy=1.0, cx=0.5, cy=0.5)
@@ -184,7 +184,11 @@ def test_run_mujoco_mapping_cli_writes_expected_artifacts(
 
     monkeypatch.setattr(mapping_cli, "capture_mapping_session", fake_capture_mapping_session)
 
-    out_dir = tmp_path / "mapping_artifacts"
+    temp_dir = mapping_cli.ROOT / ".tmp-tests-mapping"
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = temp_dir / "mapping_artifacts"
     mapping_cli.main(
         [
             "--width",
@@ -218,3 +222,4 @@ def test_run_mujoco_mapping_cli_writes_expected_artifacts(
 
     trace = json.loads((out_dir / "trace.json").read_text(encoding="utf-8"))
     assert trace["events"][-1]["payload"]["frame_count"] == 2
+    shutil.rmtree(temp_dir)

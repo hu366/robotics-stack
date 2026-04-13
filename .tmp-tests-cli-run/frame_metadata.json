@@ -1,0 +1,84 @@
+[
+  {
+    "frame_id": "frame_000",
+    "camera_name": "wrist_rgbd",
+    "timestamp": 0.0,
+    "intrinsics": {
+      "width": 160,
+      "height": 120,
+      "fx": 88.95365811076442,
+      "fy": 88.95365811076442,
+      "cx": 79.5,
+      "cy": 59.5
+    },
+    "pose": {
+      "position": [
+        0.5544994780317354,
+        -4.314083075427408e-33,
+        0.5565024294875892
+      ],
+      "rotation": [
+        [
+          9.819831711821436e-05,
+          -0.9999999951785448,
+          -3.1401849173675493e-16
+        ],
+        [
+          0.9999999951785448,
+          9.819831711821436e-05,
+          2.465190328815662e-32
+        ],
+        [
+          3.083608743255026e-20,
+          -3.1401849022272896e-16,
+          0.9999999999999996
+        ]
+      ]
+    },
+    "point_count": 19200,
+    "rgb_path": "C:\\Users\\Administrator\\Desktop\\robotics-stack\\.tmp-tests-cli-run\\frames\\frame_000_rgb.png",
+    "depth_npy_path": "C:\\Users\\Administrator\\Desktop\\robotics-stack\\.tmp-tests-cli-run\\frames\\frame_000_depth.npy",
+    "depth_vis_path": "C:\\Users\\Administrator\\Desktop\\robotics-stack\\.tmp-tests-cli-run\\frames\\frame_000_depth_vis.png"
+  },
+  {
+    "frame_id": "frame_001",
+    "camera_name": "wrist_rgbd",
+    "timestamp": 1.0,
+    "intrinsics": {
+      "width": 160,
+      "height": 120,
+      "fx": 88.95365811076442,
+      "fy": 88.95365811076442,
+      "cx": 79.5,
+      "cy": 59.5
+    },
+    "pose": {
+      "position": [
+        0.5635171162417925,
+        0.16036355596486024,
+        0.46535738981672503
+      ],
+      "rotation": [
+        [
+          -0.32268790537479464,
+          -0.9437708485197622,
+          0.07189646172874554
+        ],
+        [
+          0.9409484691533074,
+          -0.328085563867739,
+          -0.08352150130135658
+        ],
+        [
+          0.10241334933919664,
+          0.04069948729250959,
+          0.9939089785343787
+        ]
+      ]
+    },
+    "point_count": 19200,
+    "rgb_path": "C:\\Users\\Administrator\\Desktop\\robotics-stack\\.tmp-tests-cli-run\\frames\\frame_001_rgb.png",
+    "depth_npy_path": "C:\\Users\\Administrator\\Desktop\\robotics-stack\\.tmp-tests-cli-run\\frames\\frame_001_depth.npy",
+    "depth_vis_path": "C:\\Users\\Administrator\\Desktop\\robotics-stack\\.tmp-tests-cli-run\\frames\\frame_001_depth_vis.png"
+  }
+]
