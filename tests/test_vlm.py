@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from interfaces.execution_trace import ExecutionTrace
 from interfaces.skill_spec import SkillSpec
 from interfaces.task_spec import TaskSpec
 from interfaces.vlm import VLMQueryContext, VLMResponse
 from modules.planner import ExecutionPlan, PlanStep
+from modules.vlm.backends import OpenAIVLMBackend
 from modules.vlm.service import VLMService
 
 
@@ -147,3 +151,58 @@ def test_vlm_structures_serialize_into_trace_events() -> None:
     ]
     assert serialized["events"][0]["payload"]["raw_response"]["model_id"] == "test-vlm"
     assert serialized["events"][2]["payload"]["discrepancies"] == ["Object did not move."]
+
+
+def test_openai_backend_sends_compatibility_headers(monkeypatch: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    class FakeResponse:
+        status = 200
+
+        def __init__(self, body: bytes) -> None:
+            self._body = body
+
+        def read(self) -> bytes:
+            return self._body
+
+        def __enter__(self) -> "FakeResponse":
+            return self
+
+        def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+            return None
+
+    def fake_urlopen(request: Any, timeout: float) -> FakeResponse:
+        captured["url"] = request.full_url
+        captured["headers"] = {key.lower(): value for key, value in request.header_items()}
+        captured["body"] = json.loads(request.data.decode("utf-8"))
+        captured["timeout"] = timeout
+        response = {
+            "id": "chatcmpl-test",
+            "object": "chat.completion",
+            "model": "gpt-5.4",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": '{"feasible": true}'},
+                    "finish_reason": "stop",
+                }
+            ],
+        }
+        return FakeResponse(json.dumps(response).encode("utf-8"))
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    backend = OpenAIVLMBackend(
+        model="gpt-5.4",
+        api_key="test-key",
+        base_url="https://codeapi.icu/v1",
+    )
+
+    response = backend.query([b"fake-image"], "Return JSON.", context=None)
+
+    assert response.model_id == "gpt-5.4"
+    assert captured["url"] == "https://codeapi.icu/v1/chat/completions"
+    assert captured["headers"]["authorization"] == "Bearer test-key"
+    assert captured["headers"]["user-agent"] == "curl/8.7.1"
+    assert captured["headers"]["accept"] == "application/json"
+    assert captured["body"]["model"] == "gpt-5.4"
+    assert captured["body"]["messages"][0]["content"][1]["type"] == "image_url"
