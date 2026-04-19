@@ -90,7 +90,7 @@ Still intentionally missing:
 Given:
 
 ```text
-place the bottle on the tray
+把瓶子放到托盘上
 ```
 
 The pipeline is expected to produce inspectable intermediate outputs such as:
@@ -130,7 +130,7 @@ uv sync --group dev
 uv run pytest -q
 uv run ruff check .
 uv run mypy .
-uv run python apps/run_task.py "place the bottle on the tray"
+uv run python apps/run_task.py "把瓶子放到托盘上"
 uv run python apps/run_benchmark.py --cases eval/benchmarks/tabletop_v0.json
 uv sync --group dev --group sim
 uv run python apps/run_mujoco_smoke.py --steps 500
@@ -163,7 +163,7 @@ docker compose run --rm app
 Override the task instruction:
 
 ```bash
-docker compose run --rm app uv run python apps/run_task.py "put the cup on the shelf"
+docker compose run --rm app uv run python apps/run_task.py "把杯子放到架子上"
 ```
 
 Run the benchmark:
