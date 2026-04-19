@@ -37,8 +37,8 @@ class TaskPlanner:
 
     def build_plan(self, task: TaskSpec, world_state: WorldState) -> ExecutionPlan:
         steps: list[PlanStep] = []
-        target_object = task.target_object or "object"
-        target_location = task.target_location or "inspection_zone"
+        target_object = task.argument_text("target_object") or "object"
+        target_location = task.argument_text("target_location") or "inspection_zone"
 
         if task.goal == "place_object":
             steps.extend(
@@ -74,6 +74,7 @@ class TaskPlanner:
                         parameters={
                             "target_object": target_object,
                             "target_location": target_location,
+                            "spatial_relation": task.spatial_relation or "to",
                         },
                     ),
                 ]
@@ -88,7 +89,11 @@ class TaskPlanner:
                         success_conditions=["scene_summarized"],
                         failure_codes=["inspection_failed"],
                     ),
-                    parameters={"scene_id": world_state.scene_id},
+                    parameters={
+                        "scene_id": world_state.scene_id,
+                        "requested_goal": task.goal,
+                        "requested_action": task.action,
+                    },
                 )
             )
 
