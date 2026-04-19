@@ -131,6 +131,7 @@ uv run pytest -q
 uv run ruff check .
 uv run mypy .
 uv run python apps/run_task.py "把瓶子放到托盘上"
+uv run python apps/run_task.py "把瓶子放到托盘上" --parser-backend llm --llm-provider mock
 uv run python apps/run_benchmark.py --cases eval/benchmarks/tabletop_v0.json
 ```
 

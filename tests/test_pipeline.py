@@ -243,6 +243,8 @@ def test_run_task_writes_trace() -> None:
     assert task_payload["target_object"] == "瓶子"
     assert task_payload["target_location"] == "托盘"
     assert task_payload["spatial_relation"] == "on"
+    assert task_payload["parser_backend"] == "rule"
+    assert task_payload["parser_diagnostics"]["backend"] == "rule"
     assert any(event["message"] == "step_1_feedback_observed" for event in data["events"])
     assert data["events"][-1]["message"] == "execution_completed"
     assert "final_world_state" in data["events"][-1]["payload"]

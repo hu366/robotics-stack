@@ -18,6 +18,10 @@ uv sync --group dev --group sim
     ```bash
     uv run python apps/run_task.py "把瓶子放到托盘上" --trace-out artifacts/trace.json
     ```
+  - 可选的结构化 LLM parser：
+    ```bash
+    uv run python apps/run_task.py "把瓶子放到托盘上" --parser-backend llm --llm-provider mock
+    ```
 
 - `run_benchmark.py`
   - 用途：执行基准测试 JSON 套件并输出报告 JSON。
