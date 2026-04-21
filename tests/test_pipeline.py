@@ -9,7 +9,7 @@ from pathlib import Path
 from interfaces.execution_trace import ExecutionTrace
 from interfaces.skill_spec import SkillSpec
 from interfaces.world_state import ObjectState, WorldState
-from modules.control import PlanExecutor, SymbolicControlBackend
+from modules.control import MjctrlMPCBackend, MjctrlMPCConfig, PlanExecutor, SymbolicControlBackend
 from modules.grounding import SceneGrounder
 from modules.planner import PlanStep, TaskPlanner
 from modules.task_parser import TaskParser
@@ -144,6 +144,74 @@ def test_symbolic_backend_inspect_scene_is_non_mutating() -> None:
     assert feedback.success
     assert feedback.failure_code is None
     assert feedback.observed_world_state.to_dict() == world_state.to_dict()
+
+
+def test_mjctrl_mpc_backend_closes_loop_for_place_step() -> None:
+    backend = MjctrlMPCBackend()
+    feedback = backend.execute_step(
+        _build_step(
+            "place_object",
+            {"target_object": "the bottle", "target_location": "the tray"},
+        ),
+        WorldState(
+            scene_id="scene-mpc-place",
+            objects=[
+                _make_object(
+                    "the bottle",
+                    [0.45, 0.12, 0.12, 0.0, 0.0, 0.0, 1.0],
+                    relations=["held_by:gripper"],
+                ),
+                _make_object("the tray", [0.7, -0.1, 0.0, 0.0, 0.0, 0.0, 1.0]),
+            ],
+            robot_mode="holding",
+        ),
+        step_index=1,
+    )
+
+    assert feedback.success
+    assert feedback.failure_code is None
+    assert feedback.metrics["controller"] == "mjctrl_mpc"
+    bottle = _require_object(feedback.observed_world_state, "the bottle")
+    tray = _require_object(feedback.observed_world_state, "the tray")
+    assert "on:the-tray" in bottle.relations
+    assert abs(bottle.pose[0] - tray.pose[0]) < 0.03
+    assert abs(bottle.pose[1] - tray.pose[1]) < 0.03
+    assert abs(bottle.pose[2] - tray.pose[2]) < 0.03
+
+
+def test_mjctrl_mpc_backend_reports_non_convergence() -> None:
+    backend = MjctrlMPCBackend(
+        MjctrlMPCConfig(
+            horizon=10,
+            max_iterations=1,
+            control_dt=0.01,
+            max_linear_velocity=0.01,
+            convergence_tolerance=1e-6,
+        )
+    )
+    feedback = backend.execute_step(
+        _build_step(
+            "place_object",
+            {"target_object": "the bottle", "target_location": "the tray"},
+        ),
+        WorldState(
+            scene_id="scene-mpc-not-converged",
+            objects=[
+                _make_object(
+                    "the bottle",
+                    [0.1, 0.1, 0.2, 0.0, 0.0, 0.0, 1.0],
+                    relations=["held_by:gripper"],
+                ),
+                _make_object("the tray", [0.9, -0.2, 0.0, 0.0, 0.0, 0.0, 1.0]),
+            ],
+            robot_mode="holding",
+        ),
+        step_index=1,
+    )
+
+    assert not feedback.success
+    assert feedback.failure_code == "place_mpc_not_converged"
+    assert feedback.metrics["controller"] == "mjctrl_mpc"
 
 
 def test_run_task_writes_trace() -> None:
