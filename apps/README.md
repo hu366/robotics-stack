@@ -16,7 +16,11 @@ uv sync --group dev --group sim
   - Purpose: run one natural-language instruction through parser -> grounding -> planner -> executor.
   - Example:
     ```bash
-    uv run python apps/run_task.py "place the bottle on the tray" --trace-out artifacts/trace.json
+    uv run python apps/run_task.py "把瓶子放到托盘上" --trace-out artifacts/trace.json
+    ```
+  - Optional structured LLM parser:
+    ```bash
+    uv run python apps/run_task.py "把瓶子放到托盘上" --parser-backend llm --llm-provider mock
     ```
 
 - `run_benchmark.py`
