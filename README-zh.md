@@ -90,7 +90,7 @@
 输入：
 
 ```text
-place the bottle on the tray
+把瓶子放到托盘上
 ```
 
 系统应产出可检查的中间结果，例如：
@@ -130,7 +130,8 @@ uv sync --group dev
 uv run pytest -q
 uv run ruff check .
 uv run mypy .
-uv run python apps/run_task.py "place the bottle on the tray"
+uv run python apps/run_task.py "把瓶子放到托盘上"
+uv run python apps/run_task.py "把瓶子放到托盘上" --parser-backend llm --llm-provider mock
 uv run python apps/run_benchmark.py --cases eval/benchmarks/tabletop_v0.json
 ```
 
@@ -161,7 +162,7 @@ docker compose run --rm app
 覆盖任务指令：
 
 ```bash
-docker compose run --rm app uv run python apps/run_task.py "put the cup on the shelf"
+docker compose run --rm app uv run python apps/run_task.py "把杯子放到架子上"
 ```
 
 运行 benchmark：

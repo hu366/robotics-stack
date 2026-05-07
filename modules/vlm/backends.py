@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -154,6 +155,48 @@ class MockVLMBackend:
                 "discrepancies": [],
                 "confidence": 0.88,
             }
+        elif stage == "task_parse":
+            if os.getenv("ROBOTICS_STACK_MOCK_LLM_FAIL_TASK_PARSE") == "1":
+                raise RuntimeError("Mock task parser backend forced failure.")
+            instruction = "" if context is None else context.task_instruction or ""
+            if "先拿起杯子再放到托盘上" in instruction:
+                payload = {
+                    "goal": "place_object",
+                    "action": "place",
+                    "arguments": [
+                        {"role": "target_object", "text": "杯子", "entity_type": "object"},
+                        {"role": "target_location", "text": "托盘", "entity_type": "object"},
+                    ],
+                    "spatial_relation": "on",
+                    "confidence": 0.55,
+                    "ambiguities": [],
+                    "omitted_details": ["先拿起杯子"],
+                }
+            elif "打开柜门" in instruction:
+                payload = {
+                    "goal": "open_object",
+                    "action": "open",
+                    "arguments": [
+                        {"role": "target_object", "text": "柜门", "entity_type": "object"},
+                    ],
+                    "spatial_relation": None,
+                    "confidence": 0.9,
+                    "ambiguities": [],
+                    "omitted_details": [],
+                }
+            else:
+                payload = {
+                    "goal": "place_object",
+                    "action": "place",
+                    "arguments": [
+                        {"role": "target_object", "text": "瓶子", "entity_type": "object"},
+                        {"role": "target_location", "text": "托盘", "entity_type": "object"},
+                    ],
+                    "spatial_relation": "on",
+                    "confidence": 0.91,
+                    "ambiguities": [],
+                    "omitted_details": [],
+                }
         else:
             payload = {"message": "unrecognized stage", "prompt": prompt}
 
