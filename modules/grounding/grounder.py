@@ -9,20 +9,22 @@ class SceneGrounder:
 
     def ground(self, task: TaskSpec) -> WorldState:
         objects: list[ObjectState] = []
-        if task.target_object:
+        target_object = task.argument_text("target_object")
+        target_location = task.argument_text("target_location")
+        if target_object:
             objects.append(
                 ObjectState(
-                    object_id=self._slug(task.target_object),
-                    label=task.target_object,
+                    object_id=self._slug(target_object),
+                    label=target_object,
                     pose=[0.4, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0],
                     relations=[],
                 )
             )
-        if task.target_location:
+        if target_location:
             objects.append(
                 ObjectState(
-                    object_id=self._slug(task.target_location),
-                    label=task.target_location,
+                    object_id=self._slug(target_location),
+                    label=target_location,
                     pose=[0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
                     relations=["reference_frame:tabletop"],
                 )
