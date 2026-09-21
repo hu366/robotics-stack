@@ -76,6 +76,16 @@ Implemented today:
 - execution trace output
 - benchmark runner
 - basic end-to-end tests
+- vendored UMI / Diffusion Policy pose math (`modules/umi_pose/`):
+  `convert_pose_mat_rep` (abs / rel / relative / delta) plus pose10d. Do not
+  rewrite that function. Default action path is body-frame `relative`
+  (`inv(g0) @ g`). Gripper stays a separate last dim.
+
+```powershell
+uv run python apps/convert_ee_to_umi_action.py `
+  --clip path\to\clip_full.json --pose-rep relative `
+  -o artifacts/umi_actions.json
+```
 
 Still intentionally missing:
 

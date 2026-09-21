@@ -135,6 +135,50 @@ uv run python apps/run_task.py "把瓶子放到托盘上" --parser-backend llm -
 uv run python apps/run_benchmark.py --cases eval/benchmarks/tabletop_v0.json
 ```
 
+## Gemini Robotics-ER 2 视频回放
+
+`apps/run_robotics_er_video.py` 用 Gemini Robotics-ER 2 分析视频中的双臂操作，要求模型返回稀疏的相机坐标系末端位姿路点，然后转换成 Piper-H 的 `T_ee+g` 轨迹，并可调用现有 MuJoCo 运动学回放器生成对比视频。
+
+它只使用平行夹爪开口量 `g`（0 到 0.07 米），不会把 Piper-H 当作 16-DoF 灵巧手，也不会调用 dex-retargeting/ORCA。默认 ER 回放使用自由物体、碰撞几何和显式指尖接触垫的 MuJoCo 接触动力学；这仍不是训练好的 policy rollout，也不代表已经接入真机。
+
+要直接运行纯接触双臂回放（不启用 weld 约束），可以执行：
+
+```powershell
+uv run python apps/make_human_vs_robot.py `
+  --video "C:\Users\Administrator\Downloads\video_20260914_210702..mp4" `
+  --clip artifacts/robotics_er_rotate_box_retry_20260920_2/er_clip.json `
+  --grasp-constraint none `
+  --require-stable-grasp `
+  --require-task-success `
+  --output artifacts/contact_replay
+```
+
+有物体轨迹时默认采用位置优先 IK，间距由物体定向支撑半径和校准后的指垫接触框架偏置计算，并在摘要中记录指垫支撑半径、双侧接触比例、接触力、物体位姿误差和失败原因。需要诊断原始末端姿态可显式传入 `--no-pos-only`；这不是默认的接触验收模式。
+
+默认模型是 `gemini-robotics-er-2-streaming-preview`。它只支持 Gemini Live API：脚本会把本地 MP4 按约 1 FPS 编码成 JPEG，通过 WebSocket 发送，再让模型输出完整 JSON 路点。先设置 Gemini API key，再运行：
+
+```powershell
+$env:GEMINI_API_KEY = "你的 Gemini API key"
+uv run python apps/run_robotics_er_video.py `
+  "C:\Users\Administrator\Downloads\video_20260914_210702..mp4" `
+  --model gemini-robotics-er-2-streaming-preview `
+  --instruction "根据视频抓住纸箱，用双臂将纸箱绕竖直轴旋转约90度，然后稳定保持。" `
+  --out-dir artifacts/robotics_er_video
+```
+
+`--inline-video` 在流式模型下表示“用于抽帧的本地视频”，不会把 MP4 作为 `inline_data` 上传；它适合用较小的视频副本减少本地解码开销。若要使用支持整段视频的标准 ER 2 模型，可显式指定 `gemini-robotics-er-2-preview`，此时仍走 Files API 或 `inline_data`：
+
+```powershell
+uv run python apps/run_robotics_er_video.py `
+  "C:\Users\Administrator\Downloads\video_20260914_210702..mp4" `
+  --model gemini-robotics-er-2-preview `
+  --inline-video artifacts/robotics_er_rotate_box/input_inline.mp4 `
+  --instruction "根据视频抓住纸箱，用双臂将纸箱绕竖直轴旋转约90度，然后稳定保持。" `
+  --out-dir artifacts/robotics_er_rotate_box
+```
+
+结果包括 `request.json`、原始 `er_response.json`、规范化的 `er_clip.json`，以及 `simulation/human_vs_robot.mp4`。没有 key 时可用 `--dry-run` 检查视频元数据；也可以用 `--fallback-clip` 验证本地 Piper 回放链路，但这不代表调用了 ER。
+
 ## 容器环境
 
 仓库提供了一个轻量级 Docker 环境，用于可复现的纯 Python 开发任务。

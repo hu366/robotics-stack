@@ -83,6 +83,21 @@ uv sync --group dev --group sim
     uv run python apps/run_mujoco_dual_view.py --scene sim/assets/franka_emika_panda/scene.xml --wrist-camera wrist_rgbd
     ```
 
+- `make_human_vs_robot.py`
+  - 用途：将双臂 Piper-H 轨迹回放到 MuJoCo 自由物体场景，支持显式指尖接触垫、接触力统计和物体位姿验收。
+  - 默认 `--grasp-constraint none` 是纯接触动力学；`contact_weld` 仅用于诊断辅助，不应作为真实抓取结果。
+  - 有物体轨迹时默认使用位置优先 IK；`--no-pos-only` 可用于姿态可达性诊断。
+  - 示例：
+    ```bash
+    uv run python apps/make_human_vs_robot.py \
+      --video demo.mp4 \
+      --clip artifacts/er_clip.json \
+      --grasp-constraint none \
+      --require-stable-grasp \
+      --require-task-success \
+      --output artifacts/contact_replay
+    ```
+
 - `capture_mujoco_rgbd.py`
   - 用途：从 MuJoCo 相机采集一帧 RGB 与深度图。
   - 默认相机：`wrist_rgbd`（挂载在 Panda 手部链路）。
