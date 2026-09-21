@@ -12,7 +12,7 @@ if str(ROOT) not in sys.path:
 
 def main() -> None:
     from interfaces.execution_trace import ExecutionTrace
-    from modules.control import PlanExecutor
+    from modules.control import MjctrlMPCBackend, PlanExecutor, SymbolicControlBackend
     from modules.grounding import SceneGrounder
     from modules.planner import TaskPlanner
     from modules.task_parser import TaskParser
@@ -30,6 +30,12 @@ def main() -> None:
         default=Path("eval/benchmarks/tabletop_v0.json"),
         help="Path to benchmark case JSON.",
     )
+    parser.add_argument(
+        "--control-backend",
+        choices=["symbolic", "mjctrl_mpc"],
+        default="mjctrl_mpc",
+        help="Control backend implementation used by benchmark runs.",
+    )
     args = parser.parse_args()
 
     cases = json.loads(args.cases.read_text(encoding="utf-8"))
@@ -37,7 +43,8 @@ def main() -> None:
     grounder = SceneGrounder()
     world_model = WorldModelStore()
     planner = TaskPlanner()
-    executor = PlanExecutor(world_model=world_model)
+    backend = SymbolicControlBackend() if args.control_backend == "symbolic" else MjctrlMPCBackend()
+    executor = PlanExecutor(world_model=world_model, backend=backend)
 
     report: list[dict[str, object]] = []
     for case in cases:
